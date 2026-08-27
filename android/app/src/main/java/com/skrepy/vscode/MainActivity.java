@@ -1,4 +1,4 @@
-package io.ionic.starter;
+package com.skrepy.vscode;
 
 import com.getcapacitor.BridgeActivity;
 

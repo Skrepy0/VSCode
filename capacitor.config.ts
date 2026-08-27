@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
-  appId: 'io.ionic.starter',
-  appName: 'VSCode',
+  appId: 'com.skrepy.vscode',
+  appName: 'Microsoft VS Code',
   webDir: 'dist',
 }
 
