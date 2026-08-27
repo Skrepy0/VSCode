@@ -4,14 +4,17 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
-import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
+
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends BridgeActivity {
 
@@ -37,32 +40,23 @@ public class MainActivity extends BridgeActivity {
             );
         }
 
-        // 配置 WebView 以允许跨域 iframe
-        configureWebView();
+        getBridge().getWebView().post(new Runnable() {
+            @Override
+            public void run() {
+                WebView webView = getBridge().getWebView();
+                webView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public void onPageFinished(WebView view, String url) {
+                        super.onPageFinished(view, url);
+                        // 注入浮窗脚本
+                        injectGifFloat(view);
+                    }
+                });
+            }
+        });
+
     }
 
-    private void configureWebView() {
-        WebView webView = getBridge().getWebView();
-        if (webView != null) {
-            WebSettings settings = webView.getSettings();
-            // 允许混合内容（HTTP iframe 在 HTTPS 页面中）
-            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-            // 启用 JavaScript
-            settings.setJavaScriptEnabled(true);
-            // 启用 DOM storage
-            settings.setDomStorageEnabled(true);
-            // 允许文件访问
-            settings.setAllowFileAccess(true);
-            // 允许内容访问
-            settings.setAllowContentAccess(true);
-            // 允许跨域访问（Android 5.0+）
-            settings.setAllowUniversalAccessFromFileURLs(true);
-            settings.setAllowFileAccessFromFileURLs(true);
-            // 启用数据库
-            settings.setDatabaseEnabled(true);
-            System.out.println("WebView 配置完成");
-        }
-    }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -94,6 +88,27 @@ public class MainActivity extends BridgeActivity {
             if (controller != null) {
                 controller.hide(WindowInsetsCompat.Type.statusBars());
             }
+        }
+    }
+
+    private void injectGifFloat(WebView webView) {
+        String jsCode = loadScriptFromAssets();
+        if (jsCode != null && !jsCode.isEmpty()) {
+            webView.evaluateJavascript(jsCode, null);
+        }
+    }
+
+    private String loadScriptFromAssets() {
+        try {
+            InputStream is = getAssets().open("gif-overlay.js");
+            int size = is.available();
+            byte[] buffer = new byte[size];
+            is.read(buffer);
+            is.close();
+            return new String(buffer, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }
