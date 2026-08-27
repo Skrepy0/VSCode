@@ -1,9 +1,9 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'io.ionic.starter',
   appName: 'VSCode',
-  webDir: 'dist'
-};
+  webDir: 'dist',
+}
 
-export default config;
+export default config

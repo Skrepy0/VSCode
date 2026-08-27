@@ -4,14 +4,19 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "format": "prettier -w .",
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "cypress run",
     "test:unit": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "android:add": "npx cap add android",
+    "android:build": "npm run build && npx cap copy",
+    "android:dev": "npm run android:build && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
     "@capacitor/app": "8.1.1",
     "@capacitor/core": "8.5.0",
     "@capacitor/haptics": "8.0.2",
@@ -20,6 +25,7 @@
     "@ionic/vue": "^9.0.0",
     "@ionic/vue-router": "^9.0.0",
     "ionicons": "^8.1.0",
+    "prettier": "^3.9.6",
     "vue": "^3.5.0",
     "vue-router": "^5.0.0"
   },
