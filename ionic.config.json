@@ -1,0 +1,7 @@
+{
+  "name": "VSCode",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
