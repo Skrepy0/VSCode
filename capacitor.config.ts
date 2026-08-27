@@ -4,6 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.skrepy.vscode',
   appName: 'Microsoft VS Code',
   webDir: 'dist',
+  server: {
+    url: 'http://127.0.0.1:1145',
+    allowNavigation: ['*'],
+    cleartext: true,
+  },
 }
 
 export default config
