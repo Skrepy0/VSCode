@@ -4,6 +4,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -33,6 +35,32 @@ public class MainActivity extends BridgeActivity {
             controller.setSystemBarsBehavior(
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             );
+        }
+
+        // 配置 WebView 以允许跨域 iframe
+        configureWebView();
+    }
+
+    private void configureWebView() {
+        WebView webView = getBridge().getWebView();
+        if (webView != null) {
+            WebSettings settings = webView.getSettings();
+            // 允许混合内容（HTTP iframe 在 HTTPS 页面中）
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            // 启用 JavaScript
+            settings.setJavaScriptEnabled(true);
+            // 启用 DOM storage
+            settings.setDomStorageEnabled(true);
+            // 允许文件访问
+            settings.setAllowFileAccess(true);
+            // 允许内容访问
+            settings.setAllowContentAccess(true);
+            // 允许跨域访问（Android 5.0+）
+            settings.setAllowUniversalAccessFromFileURLs(true);
+            settings.setAllowFileAccessFromFileURLs(true);
+            // 启用数据库
+            settings.setDatabaseEnabled(true);
+            System.out.println("WebView 配置完成");
         }
     }
 
