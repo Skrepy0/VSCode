@@ -42,8 +42,6 @@ const TARGET_URL = 'http://127.0.0.1:1145'
 const currentUrl = ref(TARGET_URL)
 const isLoading = ref(true)
 const loadFailed = ref(false)
-const iframeRef = ref<HTMLIFrameElement | null>(null)
-const isHomePage = ref(true)
 
 let backButtonListener: any = null
 let loadTimeout: ReturnType<typeof setTimeout> | null = null
@@ -105,17 +103,10 @@ const startLoadTimeout = () => {
   }, 10000)
 }
 
-const handleMessage = (event: MessageEvent) => {
-  if (event.data && event.data.type === 'navigation-change') {
-    isHomePage.value = event.data.isHome
-    console.log('当前是否主页:', isHomePage.value)
-  }
-}
-
 const initBackButton = () => {
   backButtonListener = App.addListener('backButton', async () => {
-    if (loadFailed.value || isHomePage.value) {
-      await App.exitApp()
+    if (loadFailed.value) {
+      await App.minimizeApp()
     }
   })
 }
@@ -132,13 +123,11 @@ const loadIframeContent = async () => {
 }
 
 onMounted(() => {
-  window.addEventListener('message', handleMessage)
   initBackButton()
   loadIframeContent()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('message', handleMessage)
   backButtonListener?.remove()
   if (loadTimeout) clearTimeout(loadTimeout)
 })

@@ -2,6 +2,7 @@ package com.skrepy.vscode;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.View;
 
 import androidx.core.view.WindowCompat;
@@ -11,6 +12,8 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    private long lastBackPressTime = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,6 +34,23 @@ public class MainActivity extends BridgeActivity {
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             );
         }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == 4) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastBackPressTime < 800) {
+                // 快速返回两次：最小化应用
+                moveTaskToBack(true);
+                return true;
+            } else {
+                // 单次返回：不做任何功能
+                lastBackPressTime = currentTime;
+                return true;
+            }
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override
