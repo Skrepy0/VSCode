@@ -67,9 +67,7 @@ public class MainActivity extends BridgeActivity {
                 moveTaskToBack(true);
                 return true;
             } else {
-                // 单次返回：不做任何功能
                 lastBackPressTime = currentTime;
-                return true;
             }
         }
         return super.onKeyDown(keyCode, event);

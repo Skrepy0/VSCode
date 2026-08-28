@@ -7,12 +7,13 @@
       </div>
       <iframe
         ref="iframeRef"
-        :src="iframeSrc"
-        class="code-server-iframe"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-        allow="clipboard-read; clipboard-write; fullscreen"
+        :src="currentUrl"
+        class="web-iframe"
+        frameborder="0"
         @load="onIframeLoadSuccess"
         @error="onIframeLoadError"
+        allow="geolocation; microphone; camera; midi; encrypted-media"
+        allowfullscreen
       ></iframe>
       <div v-if="loadFailed" class="error-overlay">
         <div class="error-content">
@@ -28,55 +29,56 @@
 
 <script setup lang="ts">
 import { IonPage, IonContent, IonIcon, IonButton, IonSpinner } from '@ionic/vue'
-import { ref, onMounted, onUnmounted } from 'vue'
-import { App } from '@capacitor/app'
+import { ref, onUnmounted } from 'vue'
 import { cloudOfflineOutline } from 'ionicons/icons'
 
 const loadFailed = ref(false)
 const loading = ref(true)
 const iframeSrc = 'http://localhost:1145'
-const iframeRef = ref<HTMLIFrameElement | null>(null)
-
-let backButtonListener: any = null
+const currentUrl = ref(iframeSrc)
+let loadTimeout: ReturnType<typeof setTimeout> | null = null
 
 const retryLoad = () => {
   loadFailed.value = false
   loading.value = true
-  // 重新加载 iframe
-  if (iframeRef.value) {
-    iframeRef.value.src = iframeSrc
+  currentUrl.value = ''
+  setTimeout(() => {
+    currentUrl.value = iframeSrc
+  }, 50)
+  startLoadTimeout()
+}
+
+const startLoadTimeout = () => {
+  if (loadTimeout) clearTimeout(loadTimeout)
+  loadTimeout = setTimeout(() => {
+    if (loading.value && !loadFailed.value) {
+      console.log('iframe 加载超时')
+      handleLoadFailure()
+    }
+  }, 10000)
+}
+
+const handleLoadFailure = () => {
+  if (loadTimeout) {
+    clearTimeout(loadTimeout)
+    loadTimeout = null
   }
+  loading.value = false
+  loadFailed.value = true
 }
 
 const onIframeLoadSuccess = () => {
-  console.log('iframe 加载成功')
+  console.log('[iframe] 加载成功')
   loading.value = false
 }
 
 const onIframeLoadError = () => {
-  console.error('iframe 加载失败')
+  console.error('[iframe] 加载失败')
   loadFailed.value = true
 }
 
-const initBackButton = async () => {
-  try {
-    backButtonListener = await App.addListener('backButton', async () => {
-      await App.minimizeApp()
-    })
-  } catch (e) {
-    console.warn('App plugin not available:', e)
-  }
-}
-
-onMounted(() => {
-  console.log('[HomePage] onMounted 开始')
-  initBackButton()
-})
-
 onUnmounted(() => {
-  if (backButtonListener) {
-    backButtonListener.remove()
-  }
+  if (loadTimeout) clearTimeout(loadTimeout)
 })
 </script>
 
