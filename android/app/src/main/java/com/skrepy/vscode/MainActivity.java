@@ -12,9 +12,11 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
+import com.skrepy.vscode.network.GMHttpBridge;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 
 public class MainActivity extends BridgeActivity {
 
@@ -27,7 +29,7 @@ public class MainActivity extends BridgeActivity {
         // 禁用 edge-to-edge 强制（Android 15+）
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
-        // 使用 WindowInsetsControllerCompat
+        // 隐藏状态栏
         WindowInsetsControllerCompat controller = null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             View decorView = getWindow().getDecorView();
@@ -39,8 +41,9 @@ public class MainActivity extends BridgeActivity {
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             );
         }
-
-        getBridge().getWebView().post(new Runnable() {
+        WebView webView = getBridge().getWebView();
+        webView.addJavascriptInterface(new GMHttpBridge(webView), "GM");
+        webView.post(new Runnable() {
             @Override
             public void run() {
                 WebView webView = getBridge().getWebView();
@@ -48,15 +51,12 @@ public class MainActivity extends BridgeActivity {
                     @Override
                     public void onPageFinished(WebView view, String url) {
                         super.onPageFinished(view, url);
-                        // 注入浮窗脚本
-                        injectGifFloat(view);
+                        injectAllScripts(view);
                     }
                 });
             }
         });
-
     }
-
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -76,7 +76,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        // 每次焦点变化时再次隐藏状态栏（应对 ColorOS 的强制恢复）
         if (hasFocus) {
             WindowInsetsControllerCompat controller = null;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -89,20 +88,38 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private void injectGifFloat(WebView webView) {
-        String jsCode = loadScriptFromAssets();
-        if (jsCode != null && !jsCode.isEmpty()) {
-            webView.evaluateJavascript(jsCode, null);
+    /**
+     * 注入 assets/scripts/ 目录下的所有 .js 文件
+     */
+    private void injectAllScripts(WebView webView) {
+        try {
+            String[] files = getAssets().list("scripts");
+            if (files == null) return;
+            String polyfill = loadScriptFromAssets("scripts/libs/gm-polyfill.js");
+            if (polyfill != null && !polyfill.isEmpty()) {
+                webView.evaluateJavascript(polyfill, null);
+            }
+            for (String fileName : files) {
+                if (fileName.endsWith(".js") && !fileName.equals("gm-polyfill.js")) {
+                    String jsCode = loadScriptFromAssets("scripts/" + fileName);
+                    if (jsCode != null && !jsCode.isEmpty()) {
+                        webView.evaluateJavascript(jsCode, null);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    private String loadScriptFromAssets() {
-        try {
-            InputStream is = getAssets().open("gif-overlay.js");
+    /**
+     * 从 assets 加载指定路径的脚本内容
+     */
+    private String loadScriptFromAssets(String path) {
+        try (InputStream is = getAssets().open(path)) {
             int size = is.available();
             byte[] buffer = new byte[size];
             is.read(buffer);
-            is.close();
             return new String(buffer, StandardCharsets.UTF_8);
         } catch (Exception e) {
             e.printStackTrace();

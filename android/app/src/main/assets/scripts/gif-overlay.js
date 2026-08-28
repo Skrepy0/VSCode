@@ -1,3 +1,4 @@
+// @grant GM_xmlhttpRequest
 ;(function () {
   'use strict'
 
@@ -226,16 +227,68 @@
   container.appendChild(img)
   document.body.appendChild(container)
 
-  // ========== 图片加载（直接设置 src，替代 GM_xmlhttpRequest） ==========
+  // ========== 图片加载 ==========
   function loadImage(url) {
     if (!url) return
-    // 直接设置 img.src，浏览器会自动发起请求，支持跨域（受 CSP 限制）
-    img.src = url
-    // 错误处理
-    img.onerror = function () {
-      console.error('图片加载失败:', url)
-      img.alt = '加载失败'
-    }
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url: url,
+      responseType: 'arraybuffer', // 尝试使用 arraybuffer
+      onload: function (response) {
+        console.log('GM_xmlhttpRequest 状态:', response.status)
+        if (response.status === 200) {
+          const data = response.response
+          console.log('响应数据类型:', typeof data)
+          console.log('是否是 ArrayBuffer:', data instanceof ArrayBuffer)
+          console.log('是否是 Blob:', data instanceof Blob)
+          console.log('数据长度/大小:', data ? data.byteLength || data.size || '未知' : '空')
+
+          // 如果数据为空或 undefined，报错退出
+          if (!data) {
+            console.error('响应数据为空')
+            img.alt = '加载失败'
+            return
+          }
+
+          let blob
+          // 根据类型构造 Blob
+          if (data instanceof Blob) {
+            blob = data
+          } else if (data instanceof ArrayBuffer) {
+            blob = new Blob([data])
+          } else if (typeof data === 'string') {
+            // 如果返回的是字符串（如 base64），可以尝试转换，但通常不会
+            console.warn('返回的是字符串，尝试转为 Blob')
+            blob = new Blob([data], { type: 'text/plain' })
+          } else {
+            console.error('未知数据类型，无法构造 Blob')
+            img.alt = '加载失败'
+            return
+          }
+
+          const reader = new FileReader()
+          reader.onload = function (e) {
+            img.src = e.target.result
+            img.onerror = function () {
+              console.error('图片解码失败')
+              img.alt = '加载失败'
+            }
+          }
+          reader.onerror = function (e) {
+            console.error('FileReader 错误:', e)
+            img.alt = '加载失败'
+          }
+          reader.readAsDataURL(blob)
+        } else {
+          console.error('请求状态码异常:', response.status)
+          img.alt = '加载失败'
+        }
+      },
+      onerror: function (err) {
+        console.error('GM_xmlhttpRequest 请求异常:', err)
+        img.alt = '加载失败'
+      },
+    })
   }
 
   // ========== 应用样式到容器 ==========
