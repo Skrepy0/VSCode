@@ -1,9 +1,11 @@
 package com.skrepy.vscode;
 
+import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
+import android.webkit.PermissionRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -13,6 +15,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
 import com.skrepy.vscode.network.GMHttpBridge;
+import com.skrepy.vscode.network.ClipboardBridge;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -43,6 +46,7 @@ public class MainActivity extends BridgeActivity {
         }
         WebView webView = getBridge().getWebView();
         webView.addJavascriptInterface(new GMHttpBridge(webView), "GM");
+        webView.addJavascriptInterface(new ClipboardBridge(webView), "ClipboardBridge");
         webView.post(new Runnable() {
             @Override
             public void run() {
