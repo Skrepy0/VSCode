@@ -18,17 +18,31 @@ import java.util.concurrent.Executors;
 public class GMHttpBridge {
     private static final String TAG = "GMHttpBridge";
     private final WebView webView;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor;
 
     public GMHttpBridge(WebView webView) {
         this.webView = webView;
+        // 使用守护线程，不会阻止 JVM 退出
+        this.executor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "GMHttpBridge");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    /**
+     * 销毁桥接，关闭线程池
+     */
+    public void destroy() {
+        executor.shutdownNow();
     }
 
     @JavascriptInterface
     public void httpRequest(final String url, final String method, final String body, final String callbackId, final String responseType) {
         executor.execute(() -> {
+            HttpURLConnection connection = null;
             try {
-                HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+                connection = (HttpURLConnection) new URL(url).openConnection();
                 connection.setRequestMethod(method);
                 connection.setDoOutput(body != null && !body.isEmpty());
                 connection.setConnectTimeout(10000);
@@ -44,8 +58,10 @@ public class GMHttpBridge {
                 // 根据 responseType 决定返回格式
                 if ("arraybuffer".equals(responseType)) {
                     // 读取二进制数据
-                    java.io.InputStream is = success ? connection.getInputStream() : connection.getErrorStream();
-                    byte[] data = readAllBytes(is);
+                    byte[] data;
+                    try (java.io.InputStream is = success ? connection.getInputStream() : connection.getErrorStream()) {
+                        data = readAllBytes(is);
+                    }
                     // 回调时返回 Base64 字符串，并在 JS 中解码
                     final String resultBase64 = android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP);
                     webView.post(() -> {
@@ -77,6 +93,10 @@ public class GMHttpBridge {
                     );
                     webView.evaluateJavascript(js, null);
                 });
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
             }
         });
     }
@@ -93,16 +113,16 @@ public class GMHttpBridge {
     }
 
     private String getString(HttpURLConnection connection, boolean success) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                 success ? connection.getInputStream() : connection.getErrorStream(),
-                StandardCharsets.UTF_8));
-        StringBuilder response = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            response.append(line);
+                StandardCharsets.UTF_8))) {
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            return response.toString();
         }
-        reader.close();
-        return response.toString();
     }
 
     private String escapeJsString(String s) {

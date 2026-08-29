@@ -1,11 +1,9 @@
 package com.skrepy.vscode;
 
-import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
-import android.webkit.PermissionRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -14,16 +12,18 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
-import com.skrepy.vscode.network.GMHttpBridge;
 import com.skrepy.vscode.network.ClipboardBridge;
+import com.skrepy.vscode.network.GMHttpBridge;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.io.IOException;
 
 public class MainActivity extends BridgeActivity {
 
     private long lastBackPressTime = 0;
+    private GMHttpBridge gmHttpBridge;
+    private ClipboardBridge clipboardBridge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,8 +45,10 @@ public class MainActivity extends BridgeActivity {
             );
         }
         WebView webView = getBridge().getWebView();
-        webView.addJavascriptInterface(new GMHttpBridge(webView), "GM");
-        webView.addJavascriptInterface(new ClipboardBridge(webView), "ClipboardBridge");
+        gmHttpBridge = new GMHttpBridge(webView);
+        clipboardBridge = new ClipboardBridge(webView);
+        webView.addJavascriptInterface(gmHttpBridge, "GM");
+        webView.addJavascriptInterface(clipboardBridge, "ClipboardBridge");
         webView.post(new Runnable() {
             @Override
             public void run() {
@@ -90,6 +92,26 @@ public class MainActivity extends BridgeActivity {
                 controller.hide(WindowInsetsCompat.Type.statusBars());
             }
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        // 清理 JavaScript 接口，防止内存泄露
+        WebView webView = getBridge().getWebView();
+        webView.removeJavascriptInterface("GM");
+        webView.removeJavascriptInterface("ClipboardBridge");
+
+        // 销毁桥接实例，释放资源
+        if (gmHttpBridge != null) {
+            gmHttpBridge.destroy();
+            gmHttpBridge = null;
+        }
+        if (clipboardBridge != null) {
+            clipboardBridge.destroy();
+            clipboardBridge = null;
+        }
+
+        super.onDestroy();
     }
 
     /**

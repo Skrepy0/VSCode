@@ -589,13 +589,15 @@
   }
   initButtonPosition()
 
-  window.addEventListener('resize', function () {
+  // resize 事件处理函数（命名函数以便后续移除）
+  const handleResize = function () {
     if (isDocked) {
       dockToEdge(settings.buttonEdge, settings.buttonOffset)
     } else {
       expandButton()
     }
-  })
+  }
+  window.addEventListener('resize', handleResize)
 
   // ========== 绑定设置面板事件 ==========
   const urlInput = document.getElementById('tianlu-url')
@@ -723,7 +725,7 @@
   })
 
   // ========== 全局快捷键呼出 ==========
-  document.addEventListener('keydown', function (e) {
+  const handleGlobalShortcut = function (e) {
     const tag = e.target.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
     if (e.target.closest('#tianlu-settings-panel')) return
@@ -741,7 +743,46 @@
       e.preventDefault()
       toggleSettings()
     }
-  })
+  }
+  document.addEventListener('keydown', handleGlobalShortcut)
+
+  // ========== 清理函数（防止内存泄露） ==========
+  function cleanup() {
+    // 移除全局事件监听器
+    window.removeEventListener('resize', handleResize)
+    document.removeEventListener('keydown', handleGlobalShortcut)
+
+    // 清理定时器
+    if (dockTimeout) {
+      clearTimeout(dockTimeout)
+      dockTimeout = null
+    }
+    if (saveHint._timeout) {
+      clearTimeout(saveHint._timeout)
+      saveHint._timeout = null
+    }
+
+    // 移除 DOM 元素
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container)
+    }
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay)
+    }
+    if (toggleBtn && toggleBtn.parentNode) {
+      toggleBtn.parentNode.removeChild(toggleBtn)
+    }
+    if (style && style.parentNode) {
+      style.parentNode.removeChild(style)
+    }
+
+    // 重置安装标志，允许重新注入
+    window.__gifOverlayInstalled = false
+  }
+
+  // 页面卸载时清理资源
+  window.addEventListener('beforeunload', cleanup)
+  window.addEventListener('pagehide', cleanup)
 
   console.log('图片浮窗已加载（完整版）')
 })()

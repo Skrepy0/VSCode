@@ -8,19 +8,29 @@ import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 
+import java.lang.ref.WeakReference;
+
 public class ClipboardBridge {
-    private final WebView webView;
+    private final WeakReference<WebView> webViewRef;
     private final ClipboardManager clipboardManager;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public ClipboardBridge(WebView webView) {
-        this.webView = webView;
+        this.webViewRef = new WeakReference<>(webView);
         this.clipboardManager = (ClipboardManager) webView.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+    }
+
+    private WebView getWebView() {
+        return webViewRef.get();
     }
 
     @JavascriptInterface
     public void readText(final String callbackId) {
         mainHandler.post(() -> {
+            // 检查 WebView 是否仍然可用
+            WebView webView = getWebView();
+            if (webView == null) return;
+
             String result = "";
             try {
                 if (clipboardManager != null && clipboardManager.hasPrimaryClip()) {
@@ -44,6 +54,10 @@ public class ClipboardBridge {
     @JavascriptInterface
     public void writeText(final String text, final String callbackId) {
         mainHandler.post(() -> {
+            // 检查 WebView 是否仍然可用
+            WebView webView = getWebView();
+            if (webView == null) return;
+
             boolean success = false;
             try {
                 ClipData clip = ClipData.newPlainText("text", text);
@@ -57,6 +71,13 @@ public class ClipboardBridge {
             );
             webView.evaluateJavascript(js, null);
         });
+    }
+
+    /**
+     * 销毁桥接，清理 Handler 中的待处理任务
+     */
+    public void destroy() {
+        mainHandler.removeCallbacksAndMessages(null);
     }
 
     private String escapeJsString(String s) {

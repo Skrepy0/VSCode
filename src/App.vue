@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { IonApp, IonRouterOutlet } from '@ionic/vue'
 import { StatusBar, Style } from '@capacitor/status-bar'
 
@@ -19,14 +19,22 @@ async function hideStatusBar() {
   }
 }
 
+// 保存定时器 ID 以便清理
+const timers: ReturnType<typeof setTimeout>[] = []
+
 onMounted(async () => {
   // 立即隐藏状态栏
   await hideStatusBar()
 
   // 多次延迟执行以应对 ColorOS 的强制恢复
-  setTimeout(hideStatusBar, 300)
-  setTimeout(hideStatusBar, 800)
-  setTimeout(hideStatusBar, 1500)
-  setTimeout(hideStatusBar, 3000)
+  timers.push(setTimeout(hideStatusBar, 300))
+  timers.push(setTimeout(hideStatusBar, 800))
+  timers.push(setTimeout(hideStatusBar, 1500))
+  timers.push(setTimeout(hideStatusBar, 3000))
+})
+
+onUnmounted(() => {
+  // 清理未执行的定时器，防止内存泄露
+  timers.forEach(clearTimeout)
 })
 </script>
