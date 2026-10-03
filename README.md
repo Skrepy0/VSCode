@@ -128,6 +128,8 @@ Before each use, start code-server in Termux:
 code-server
 ```
 
+For more configuration options, refer to the [example startup script](./docs/example/start.sh).
+
 If you modified the configuration file, you can also specify the configuration file path:
 
 ```bash

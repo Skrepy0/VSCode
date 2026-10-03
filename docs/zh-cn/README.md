@@ -126,6 +126,8 @@ const PASSWORD = 'myPassword123'
 code-server
 ```
 
+更多配置可以参考[示例启动脚本](../example/start.sh)
+
 如果你修改了配置文件，也可以指定配置文件路径：
 
 ```bash
