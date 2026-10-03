@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Overlayer
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.0.1
 // @icon         https://cdn.modrinth.com/data/IVkzWFlE/248189d69c5ee3a9f0b885cfb5b3cc9bf773acea_96.webp
 // @author       Skrepy
 // @description  多实例图像浮窗，位置锚定视口右下角，right/bottom 支持负值（特别版：沿用原加载方式）
@@ -114,9 +114,14 @@
   let layers = loadLayers()
 
   // ==================== 样式注入（代替 GM_addStyle） ====================
+  // 【作用域原则】
+  //   .overlayer-layer / #overlayer-toggle-btn 属于脚本自有命名，不会冲突，保持原样。
+  //   其余所有通用类名都加 `#overlayer-settings-panel` 前缀限定，只在面板内生效，
+  //   不会污染网页本身的同名 class。
   const styleEl = document.createElement('style')
   styleEl.id = 'overlayer-styles'
   styleEl.textContent = `
+    /* ---------- 图层容器（独立命名，不影响网页） ---------- */
     .overlayer-layer {
       position: fixed;
       z-index: 999;
@@ -142,6 +147,7 @@
       }
     }
 
+    /* ---------- 吸附按钮（ID 选择器，唯一） ---------- */
     #overlayer-toggle-btn {
       position: fixed;
       width: 40px;
@@ -172,6 +178,7 @@
     }
     #overlayer-toggle-btn:active { cursor: grabbing; }
 
+    /* ---------- 设置面板遮罩（ID 选择器） ---------- */
     #overlayer-settings-overlay {
       position: fixed;
       top: 0; left: 0;
@@ -183,6 +190,8 @@
       align-items: center;
       backdrop-filter: blur(3px);
     }
+
+    /* ---------- 设置面板主体（ID 选择器） ---------- */
     #overlayer-settings-panel {
       background: #1e1e2e;
       color: #cdd6f4;
@@ -229,13 +238,14 @@
       flex: 1;
     }
 
-    .layer-list {
+    /* ---------- 图层列表（限定在面板内） ---------- */
+    #overlayer-settings-panel .layer-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
       margin-bottom: 16px;
     }
-    .layer-item {
+    #overlayer-settings-panel .layer-item {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -245,11 +255,11 @@
       border: 1px solid #45475a;
       transition: border-color 0.2s;
     }
-    .layer-item.selected {
+    #overlayer-settings-panel .layer-item.selected {
       border-color: #89b4fa;
       box-shadow: 0 0 0 1px #89b4fa;
     }
-    .layer-item .layer-thumb {
+    #overlayer-settings-panel .layer-item .layer-thumb {
       width: 36px;
       height: 36px;
       border-radius: 6px;
@@ -257,24 +267,27 @@
       background: #11111b;
       flex-shrink: 0;
     }
-    .layer-item .layer-info { flex: 1; min-width: 0; }
-    .layer-item .layer-name {
+    #overlayer-settings-panel .layer-item .layer-info {
+      flex: 1;
+      min-width: 0;
+    }
+    #overlayer-settings-panel .layer-item .layer-name {
       font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .layer-item .layer-meta {
+    #overlayer-settings-panel .layer-item .layer-meta {
       font-size: 11px;
       color: #6c7086;
       margin-top: 2px;
     }
-    .layer-item .layer-actions {
+    #overlayer-settings-panel .layer-item .layer-actions {
       display: flex;
       gap: 4px;
       flex-shrink: 0;
     }
-    .layer-item .layer-actions button {
+    #overlayer-settings-panel .layer-item .layer-actions button {
       background: transparent;
       border: 1px solid #45475a;
       color: #cdd6f4;
@@ -288,16 +301,17 @@
       justify-content: center;
       transition: all 0.2s;
     }
-    .layer-item .layer-actions button:hover {
+    #overlayer-settings-panel .layer-item .layer-actions button:hover {
       background: #45475a;
       border-color: #89b4fa;
     }
-    .layer-item .layer-actions button.danger:hover {
+    #overlayer-settings-panel .layer-item .layer-actions button.danger:hover {
       border-color: #f38ba8;
       color: #f38ba8;
     }
 
-    .btn {
+    /* ---------- 按钮（限定在面板内） ---------- */
+    #overlayer-settings-panel .btn {
       padding: 8px 16px;
       border-radius: 8px;
       border: 1px solid #45475a;
@@ -309,31 +323,35 @@
       transition: all 0.2s;
       font-family: inherit;
     }
-    .btn:hover { background: #45475a; border-color: #89b4fa; }
-    .btn.primary {
+    #overlayer-settings-panel .btn:hover {
+      background: #45475a;
+      border-color: #89b4fa;
+    }
+    #overlayer-settings-panel .btn.primary {
       background: #89b4fa;
       color: #1e1e2e;
       border-color: #89b4fa;
       font-weight: 600;
     }
-    .btn.primary:hover { background: #74c7ec; }
-    .btn-row {
+    #overlayer-settings-panel .btn.primary:hover { background: #74c7ec; }
+    #overlayer-settings-panel .btn-row {
       display: flex;
       gap: 8px;
       margin-bottom: 16px;
       flex-wrap: wrap;
     }
 
-    .setting-group { margin-bottom: 14px; }
-    .setting-group label {
+    /* ---------- 表单控件（限定在面板内） ---------- */
+    #overlayer-settings-panel .setting-group { margin-bottom: 14px; }
+    #overlayer-settings-panel .setting-group label {
       display: block;
       font-weight: 500;
       margin-bottom: 4px;
       color: #a6adc8;
       font-size: 12px;
     }
-    .setting-group input[type="text"],
-    .setting-group input[type="number"] {
+    #overlayer-settings-panel .setting-group input[type="text"],
+    #overlayer-settings-panel .setting-group input[type="number"] {
       width: 100%;
       padding: 8px 10px;
       border: 1px solid #45475a;
@@ -346,25 +364,26 @@
       transition: border-color 0.2s;
       font-family: inherit;
     }
-    .setting-group input:focus {
+    #overlayer-settings-panel .setting-group input:focus {
       border-color: #89b4fa;
       box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.2);
     }
-    .setting-group input[type="range"] {
+    #overlayer-settings-panel .setting-group input[type="range"] {
       width: 100%;
       margin: 6px 0;
       accent-color: #89b4fa;
     }
-    .setting-group .range-value {
+    #overlayer-settings-panel .setting-group .range-value {
       float: right;
       font-weight: 600;
       color: #89b4fa;
       font-size: 13px;
     }
-    .setting-row { display: flex; gap: 10px; }
-    .setting-row .setting-group { flex: 1; }
+    #overlayer-settings-panel .setting-row { display: flex; gap: 10px; }
+    #overlayer-settings-panel .setting-row .setting-group { flex: 1; }
 
-    .shortcut-input {
+    /* ---------- 快捷键输入框（限定在面板内） ---------- */
+    #overlayer-settings-panel .shortcut-input {
       background: #11111b;
       padding: 8px 12px;
       border-radius: 8px;
@@ -377,17 +396,19 @@
       color: #cdd6f4;
       transition: border-color 0.2s;
     }
-    .shortcut-input:focus {
+    #overlayer-settings-panel .shortcut-input:focus {
       border-color: #89b4fa;
       outline: none;
       background: #1e1e2e;
     }
-    .hint {
+
+    /* ---------- 提示 / 分隔 / 空状态（限定在面板内） ---------- */
+    #overlayer-settings-panel .hint {
       font-size: 11px;
       color: #6c7086;
       margin-top: 4px;
     }
-    .save-hint {
+    #overlayer-settings-panel .save-hint {
       text-align: center;
       margin-top: 8px;
       font-size: 12px;
@@ -395,11 +416,13 @@
       opacity: 0;
       transition: opacity 0.3s;
     }
-    .save-hint.show { opacity: 1; }
-
-    .divider { height: 1px; background: #313244; margin: 16px 0; }
-
-    .empty-hint {
+    #overlayer-settings-panel .save-hint.show { opacity: 1; }
+    #overlayer-settings-panel .divider {
+      height: 1px;
+      background: #313244;
+      margin: 16px 0;
+    }
+    #overlayer-settings-panel .empty-hint {
       text-align: center;
       color: #6c7086;
       padding: 20px 0;
@@ -425,7 +448,6 @@
           console.log('是否是 Blob:', data instanceof Blob)
           console.log('数据长度/大小:', data ? data.byteLength || data.size || '未知' : '空')
 
-          // 如果数据为空或 undefined，报错退出
           if (!data) {
             console.error('响应数据为空')
             targetImg.alt = '加载失败'
@@ -433,13 +455,11 @@
           }
 
           let blob
-          // 根据类型构造 Blob
           if (data instanceof Blob) {
             blob = data
           } else if (data instanceof ArrayBuffer) {
             blob = new Blob([data])
           } else if (typeof data === 'string') {
-            // 如果返回的是字符串（如 base64），可以尝试转换，但通常不会
             console.warn('返回的是字符串，尝试转为 Blob')
             blob = new Blob([data], { type: 'text/plain' })
           } else {
@@ -1130,5 +1150,5 @@
   }
 
   init()
-  console.log('Overlayer v1.0.0 已加载，图层数量:', layers.length)
+  console.log('Overlayer v1.0.1（特别版）已加载，图层数量:', layers.length)
 })()
